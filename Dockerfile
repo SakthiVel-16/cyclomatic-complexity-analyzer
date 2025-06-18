@@ -1,20 +1,31 @@
-# Use a lightweight OpenJDK 21 base image
-FROM openjdk:21-slim-buster
+# Stage 1: Build the Spring Boot application
+FROM maven:3.9.6-openjdk-21 AS builder
 
-# Set the working directory inside the container
+# Set the working directory in the builder stage
 WORKDIR /app
 
-# Copy the built Spring Boot JAR file from your local target directory
-# IMPORTANT: Adjust 'cyclomatic-complexity-analyzer-0.0.1-SNAPSHOT.jar' to your actual JAR name
-COPY target/cyclomatic-complexity-analyzer-0.0.1-SNAPSHOT.jar app.jar
-# Expose the port that the Spring Boot application will run on
+# Copy the pom.xml and download dependencies first
+# This improves build cache performance
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copy all source code
+COPY src ./src
+
+# Package the application (skip tests for faster builds and if they are failing)
+RUN mvn clean package -DskipTests
+
+# Stage 2: Create the final lightweight image
+FROM openjdk:21-slim-buster
+
+# Set the working directory in the final image
+WORKDIR /app
+
+# Copy the JAR file from the builder stage
+COPY --from=builder /app/target/cyclomatic-complexity-analyzer-0.0.1-SNAPSHOT.jar app.jar
+
+# Expose the port your Spring Boot application listens on (default is 8080)
 EXPOSE 8080
 
-# Run the Spring Boot application when the container starts
+# Command to run your Spring Boot application when the container starts
 ENTRYPOINT ["java", "-jar", "app.jar"]
-# Optional: If you want to run the application with a specific profile, you can uncomment the following line
-# ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
-# Optional: If you want to run the application with specific JVM options, you can uncomment the following line
-# ENTRYPOINT ["java", "-Xmx512m", "-jar", "app.jar"]    
-# Optional: If you want to run the application with a specific logging configuration, you can uncomment the following line
-# ENTRYPOINT ["java", "-Dlogging.config=classpath:logback-spring.xml", "-jar", "app.jar"]
