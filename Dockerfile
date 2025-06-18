@@ -1,5 +1,5 @@
 # Stage 1: Build the Spring Boot application
-FROM maven:3.9.6-openjdk-21 AS builder
+FROM maven:3-openjdk-21 AS builder
 
 # Set the working directory in the builder stage
 WORKDIR /app
